@@ -38,9 +38,25 @@ button:hover{background:#f7f7f7}
 
 <script>
 // ========== 这里改成你自己的Supabase信息！！ ==========
-const SUPABASE_URL = https://hltindzndgnnwccxxfkr.supabase.co/rest/v1/;
-const SUPABASE_ANON_KEY = sb_publishable_h8bgtJzkZVNqNkwH88ZfoA_XM5riazo;
+const SUPABASE_URL = "https://hltindzndgnnwccxxfkr.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_h8bgtJzkZVNqNkwH88ZfoA_XM5riazo";
 // ======================================================
+let supabase;
+let dishList = [];
+const statusEl = document.getElementById('status');
+
+try{
+  if(!window.supabase){
+    throw new Error("Supabase SDK 没有加载成功");
+  }
+  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  statusEl.textContent = "🟢 实时同步已开启，对方操作会自动刷新";
+  statusEl.classList.add("ok");
+  loadDishes();
+}catch(e){
+  statusEl.textContent = "🔴 Supabase初始化失败！" + e.message;
+  console.error("初始化错误",e);
+}
 let supabase;
 let dishList = [];
 const statusEl = document.getElementById('status');
