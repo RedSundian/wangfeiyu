@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>情侣点菜｜实时双人版</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- 更换CDN为unpkg，国内更稳定 -->
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;font-family:system-ui,-apple-system}
 body{max-width:720px;margin:24px auto;padding:0 16px}
@@ -37,19 +38,23 @@ button:hover{background:#f7f7f7}
 
 <script>
 // ========== 这里改成你自己的Supabase信息！！ ==========
-const SUPABASE_URL = "https://hltindzndgnnwccxxfkr.supabase.co/rest/v1/";
-const SUPABASE_ANON_KEY = "sb_publishable_h8bgtJzkZVNqNkwH88ZfoA_XM5riazo";
+const SUPABASE_URL = https://hltindzndgnnwccxxfkr.supabase.co/rest/v1/;
+const SUPABASE_ANON_KEY = sb_publishable_h8bgtJzkZVNqNkwH88ZfoA_XM5riazo;
 // ======================================================
 let supabase;
 let dishList = [];
 const statusEl = document.getElementById('status');
 
 try{
-  supabase = window.supabase.createClienthttps://hltindzndgnnwccxxfkr.supabase.co/rest/v1/, sb_publishable_h8bgtJzkZVNqNkwH88ZfoA_XM5riazo);
+  if(!window.supabase){
+    throw new Error("Supabase SDK 没有加载成功");
+  }
+  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   statusEl.textContent = "🟢 实时同步已开启，对方操作会自动刷新";
   statusEl.classList.add("ok");
+  loadDishes();
 }catch(e){
-  statusEl.textContent = "🔴 Supabase初始化失败！检查URL和密钥";
+  statusEl.textContent = "🔴 Supabase初始化失败！" + e.message;
   console.error("初始化错误",e);
 }
 
@@ -62,7 +67,7 @@ async function loadDishes(){
     render();
   }catch(err){
     console.error("读取菜品失败：",err);
-    statusEl.textContent = "🔴 读取数据库失败，请检查RLS策略";
+    statusEl.textContent = "🔴 读取数据库失败：" + err.message;
   }
 }
 
@@ -141,9 +146,6 @@ async function resetAll(){
   }
   document.getElementById('result').innerText='';
 }
-
-// 初始化加载
-loadDishes();
 </script>
 </body>
 </html>
