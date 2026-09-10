@@ -15,12 +15,13 @@ button:hover{background:#f7f7f7}
 #result{padding:16px;background:#fff2cc;border-radius:8px;margin-top:20px;min-height:60px}
 .add-area{margin:20px 0;display:flex;gap:8px}
 #newDish{flex:1;padding:8px;font-size:1rem}
-.sync-tip{color:#27ae60;font-size:14px;margin-bottom:10px}
+.sync-tip{color:#e74c3c;font-size:14px;margin-bottom:10px}
+.sync-tip.ok{color:#27ae60}
 </style>
 </head>
 <body>
 <h2>🍽️ 情侣点菜 · 实时双人同步</h2>
-<div class="sync-tip">🟢 实时同步已开启，对方操作会自动刷新</div>
+<div class="sync-tip" id="status">⏳ 正在连接数据库...</div>
 <div class="btns">
 <button onclick="filterBoth()">✅ 双方都想吃</button>
 <button onclick="filterAny()">至少一人想吃</button>
@@ -35,24 +36,40 @@ button:hover{background:#f7f7f7}
 <div id="result"></div>
 
 <script>
-// ========== 替换这里为你的 Supabase 信息 ==========
-const SUPABASE_URL = "你的项目URL";
-const SUPABASE_ANON_KEY = "你的anon密钥";
-// ==================================================
-const supabase = window.supabase.createClient(https://hltindzndgnnwccxxfkr.supabase.co/rest/v1/, sb_secret_uR2WcZatKu8-nQSN8-jmWg_-mAWKuGD);
+// ========== 这里改成你自己的Supabase信息！！ ==========
+const SUPABASE_URL = "https://hltindzndgnnwccxxfkr.supabase.co/rest/v1/";
+const SUPABASE_ANON_KEY = "sb_publishable_h8bgtJzkZVNqNkwH88ZfoA_XM5riazo";
+// ======================================================
+let supabase;
 let dishList = [];
+const statusEl = document.getElementById('status');
+
+try{
+  supabase = window.supabase.createClienthttps://hltindzndgnnwccxxfkr.supabase.co/rest/v1/, sb_publishable_h8bgtJzkZVNqNkwH88ZfoA_XM5riazo);
+  statusEl.textContent = "🟢 实时同步已开启，对方操作会自动刷新";
+  statusEl.classList.add("ok");
+}catch(e){
+  statusEl.textContent = "🔴 Supabase初始化失败！检查URL和密钥";
+  console.error("初始化错误",e);
+}
 
 // 加载菜品列表
 async function loadDishes(){
-  const {data, error} = await supabase.from('dishes').select('*').order('id');
-  if(error) return console.error(error);
-  dishList = data;
-  render();
+  try{
+    const {data, error} = await supabase.from('dishes').select('*').order('id');
+    if(error) throw error;
+    dishList = data;
+    render();
+  }catch(err){
+    console.error("读取菜品失败：",err);
+    statusEl.textContent = "🔴 读取数据库失败，请检查RLS策略";
+  }
 }
 
-// 实时监听数据库变化（核心，自动刷新）
+// 实时监听数据库变化
 const channel = supabase.channel('dish_channel')
 .on('postgres_changes', { event: '*', schema: 'public', table: 'dishes' }, payload => {
+  console.log("数据库更新",payload);
   loadDishes();
 })
 .subscribe();
@@ -76,19 +93,22 @@ function render(){
 // 更新【我想吃】状态
 async function toggleMe(id){
   const target = dishList.find(i=>i.id === id);
-  await supabase.from('dishes').update({me: !target.me}).eq('id', id);
+  const {error} = await supabase.from('dishes').update({me: !target.me}).eq('id', id);
+  if(error) console.error("更新失败",error);
 }
 // 更新【对方想吃】状态
 async function togglePartner(id){
   const target = dishList.find(i=>i.id === id);
-  await supabase.from('dishes').update({partner: !target.partner}).eq('id', id);
+  const {error} = await supabase.from('dishes').update({partner: !target.partner}).eq('id', id);
+  if(error) console.error("更新失败",error);
 }
 
 // 添加新菜品
 async function addDish(){
   const name = document.getElementById('newDish').value.trim();
   if(!name) return;
-  await supabase.from('dishes').insert([{name, me:false, partner:false}]);
+  const {error} = await supabase.from('dishes').insert([{name, me:false, partner:false}]);
+  if(error) console.error("添加菜品失败",error);
   document.getElementById('newDish').value = '';
 }
 
@@ -116,7 +136,8 @@ function pickRandom(){
 // 清空勾选（保留菜品，只清空勾选状态）
 async function resetAll(){
   for(let d of dishList){
-    await supabase.from('dishes').update({me:false, partner:false}).eq('id', d.id);
+    const {error} = await supabase.from('dishes').update({me:false, partner:false}).eq('id', d.id);
+    if(error) console.error("清空失败",error);
   }
   document.getElementById('result').innerText='';
 }
