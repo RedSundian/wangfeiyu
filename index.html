@@ -36,7 +36,6 @@ button:hover{background:#f7f7f7}
 <div id="result"></div>
 
 <script>
-// ========== Supabase配置 ==========
 const SUPABASE_URL = "https://hltindzndgnnwccxxfkr.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_h8bgtJzkZVNqNkwH88ZfoA_XM5riazo";
 
@@ -57,7 +56,6 @@ try{
   console.error("初始化错误",e);
 }
 
-// 加载菜品列表
 async function loadDishes(){
   try{
     const {data, error} = await supabaseClient.from('dishes').select('*').order('id');
@@ -70,7 +68,6 @@ async function loadDishes(){
   }
 }
 
-// 实时监听数据库变化
 const channel = supabaseClient.channel('dish_channel')
 .on('postgres_changes', { event: '*', schema: 'public', table: 'dishes' }, payload => {
   console.log("数据库更新",payload);
@@ -78,7 +75,6 @@ const channel = supabaseClient.channel('dish_channel')
 })
 .subscribe();
 
-// 渲染页面
 function render(){
   const wrap = document.getElementById('dishList');
   wrap.innerHTML = '';
@@ -94,20 +90,18 @@ function render(){
   })
 }
 
-// 更新【我想吃】状态
 async function toggleMe(id){
   const target = dishList.find(i=>i.id === id);
   const {error} = await supabaseClient.from('dishes').update({me: !target.me}).eq('id', id);
   if(error) console.error("更新失败",error);
 }
-// 更新【对方想吃】状态
+
 async function togglePartner(id){
   const target = dishList.find(i=>i.id === id);
   const {error} = await supabaseClient.from('dishes').update({partner: !target.partner}).eq('id', id);
   if(error) console.error("更新失败",error);
 }
 
-// 添加新菜品
 async function addDish(){
   const name = document.getElementById('newDish').value.trim();
   if(!name) return;
@@ -116,18 +110,17 @@ async function addDish(){
   document.getElementById('newDish').value = '';
 }
 
-// 筛选双方都想吃
 function filterBoth(){
   const arr = dishList.filter(d=>d.me && d.partner).map(d=>d.name);
   document.getElementById('result').innerText = `双方都同意的菜品：${arr.length?arr.join('、'):"暂无"}`;
 }
-// 筛选至少一人想吃
+
 function filterAny(){
   const arr = dishList.filter(d=>d.me || d.partner).map(d=>d.name);
   document.getElementById('result').innerText = `至少一人想吃的候选：${arr.length?arr.join('、'):"暂无"}`;
   return arr;
 }
-// 随机抽取晚餐
+
 function pickRandom(){
   const arr = filterAny();
   if(arr.length===0){
@@ -137,7 +130,7 @@ function pickRandom(){
   const pick = arr[Math.floor(Math.random()*arr.length)];
   document.getElementById('result').innerHTML = `🎉 今晚决定吃：<strong>${pick}</strong>`;
 }
-// 清空勾选（保留菜品，只清空勾选状态）
+
 async function resetAll(){
   for(let d of dishList){
     const {error} = await supabaseClient.from('dishes').update({me:false, partner:false}).eq('id', d.id);
