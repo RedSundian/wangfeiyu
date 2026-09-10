@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>情侣点菜｜实时双人版</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;font-family:system-ui,-apple-system}
+body{max-width:720px;margin:24px auto;padding:0 16px}
+.dish-item{display:flex;align-items:center;padding:12px;border-bottom:#eee solid 1px;gap:12px;flex-wrap:wrap}
+.btns{margin:20px 0;display:flex;gap:10px;flex-wrap:wrap}
+button{padding:9px 14px;font-size:1rem;cursor:pointer;border-radius:6px;border:1px solid #ddd;background:#fff}
+button:hover{background:#f7f7f7}
+#result{padding:16px;background:#fff2cc;border-radius:8px;margin-top:20px;min-height:60px}
+.add-area{margin:20px 0;display:flex;gap:8px}
+#newDish{flex:1;padding:8px;font-size:1rem}
+.sync-tip{color:#27ae60;font-size:14px;margin-bottom:10px}
+</style>
+</head>
+<body>
+<h2>🍽️ 情侣点菜 · 实时双人同步</h2>
+<div class="sync-tip">🟢 实时同步已开启，对方操作会自动刷新</div>
+<div class="btns">
+<button onclick="filterBoth()">✅ 双方都想吃</button>
+<button onclick="filterAny()">至少一人想吃</button>
+<button onclick="pickRandom()">🎲 随机抽晚餐</button>
+<button onclick="resetAll()">清空全部选择</button>
+</div>
+<div class="add-area">
+<input id="newDish" placeholder="输入菜品名称，点添加">
+<button onclick="addDish()">添加菜品</button>
+</div>
+<div id="dishList"></div>
+<div id="result"></div>
+
+<script>
+// ========== 替换这里为你的 Supabase 信息 ==========
+const SUPABASE_URL = "你的项目URL";
+const SUPABASE_ANON_KEY = "你的anon密钥";
+// ==================================================
+const supabase = window.supabase.createClient(https://hltindzndgnnwccxxfkr.supabase.co/rest/v1/, sb_secret_uR2WcZatKu8-nQSN8-jmWg_-mAWKuGD);
+let dishList = [];
+
+// 加载菜品列表
+async function loadDishes(){
+  const {data, error} = await supabase.from('dishes').select('*').order('id');
+  if(error) return console.error(error);
+  dishList = data;
+  render();
+}
+
+// 实时监听数据库变化（核心，自动刷新）
+const channel = supabase.channel('dish_channel')
+.on('postgres_changes', { event: '*', schema: 'public', table: 'dishes' }, payload => {
+  loadDishes();
+})
+.subscribe();
+
+// 渲染页面
+function render(){
+  const wrap = document.getElementById('dishList');
+  wrap.innerHTML = '';
+  dishList.forEach((d)=>{
+    const div = document.createElement('div');
+    div.className = 'dish-item';
+    div.innerHTML = `
+      <span style="flex:1;font-weight:500">${d.name}</span>
+      <label>我想吃<input type="checkbox" ${d.me?'checked':''} onchange="toggleMe(${d.id})"></label>
+      <label>对方想吃<input type="checkbox" ${d.partner?'checked':''} onchange="togglePartner(${d.id})"></label>
+    `
+    wrap.appendChild(div);
+  })
+}
+
+// 更新【我想吃】状态
+async function toggleMe(id){
+  const target = dishList.find(i=>i.id === id);
+  await supabase.from('dishes').update({me: !target.me}).eq('id', id);
+}
+// 更新【对方想吃】状态
+async function togglePartner(id){
+  const target = dishList.find(i=>i.id === id);
+  await supabase.from('dishes').update({partner: !target.partner}).eq('id', id);
+}
+
+// 添加新菜品
+async function addDish(){
+  const name = document.getElementById('newDish').value.trim();
+  if(!name) return;
+  await supabase.from('dishes').insert([{name, me:false, partner:false}]);
+  document.getElementById('newDish').value = '';
+}
+
+// 筛选双方都想吃
+function filterBoth(){
+  const arr = dishList.filter(d=>d.me && d.partner).map(d=>d.name);
+  document.getElementById('result').innerText = `双方都同意的菜品：${arr.length?arr.join('、'):"暂无"}`;
+}
+// 筛选至少一人想吃
+function filterAny(){
+  const arr = dishList.filter(d=>d.me || d.partner).map(d=>d.name);
+  document.getElementById('result').innerText = `至少一人想吃的候选：${arr.length?arr.join('、'):"暂无"}`;
+  return arr;
+}
+// 随机抽取晚餐
+function pickRandom(){
+  const arr = filterAny();
+  if(arr.length===0){
+    document.getElementById('result').innerText="候选为空！先勾选想吃的菜";
+    return;
+  }
+  const pick = arr[Math.floor(Math.random()*arr.length)];
+  document.getElementById('result').innerHTML = `🎉 今晚决定吃：<strong>${pick}</strong>`;
+}
+// 清空勾选（保留菜品，只清空勾选状态）
+async function resetAll(){
+  for(let d of dishList){
+    await supabase.from('dishes').update({me:false, partner:false}).eq('id', d.id);
+  }
+  document.getElementById('result').innerText='';
+}
+
+// 初始化加载
+loadDishes();
+</script>
+</body>
+</html>
